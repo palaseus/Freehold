@@ -1,0 +1,38 @@
+# Local WAL overlay. Not applied to the running Compose project.
+# wal-archive and base-backups are separate volumes from postgres-data.
+# They are still on this machine. This file is not an off-site copy.
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal-archive/%f && cp %p /wal-archive/%f
+      - -c
+      - archive_timeout=60
+      - -c
+      - max_wal_senders=4
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - wal-archive:/wal-archive
+  backup:
+    image: postgres:16-bookworm
+    environment:
+      PGHOST: postgres
+      PGUSER: freehold_backup
+      PGPASSWORD: ${BACKUP_DATABASE_PASSWORD:?Set BACKUP_DATABASE_PASSWORD}
+      PGDATABASE: postgres
+    volumes:
+      - base-backups:/backups
+      - wal-archive:/wal-archive:ro
+    entrypoint: ["sleep", "infinity"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  wal-archive:
+  base-backups:

@@ -1,0 +1,156 @@
+# Next deploy definition. Do not apply this file to the running Compose project
+# until its database is migrated forward and the new passwords exist. Recreating
+# the API with this file removes AUTH_DATABASE_URL from that process.
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: freehold
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d freehold"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes", --maxmemory-policy, noeviction]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    build: .
+    image: freehold-api:local
+    command: [node, scripts/migrate.mjs]
+    environment:
+      # Use URL-safe passwords in the local Compose env file.
+      MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/freehold
+      API_DATABASE_PASSWORD: ${API_DATABASE_PASSWORD:?Set API_DATABASE_PASSWORD}
+      WORKER_DATABASE_PASSWORD: ${WORKER_DATABASE_PASSWORD:?Set WORKER_DATABASE_PASSWORD}
+      VERIFIER_DATABASE_PASSWORD: ${VERIFIER_DATABASE_PASSWORD:?Set VERIFIER_DATABASE_PASSWORD}
+      AUTH_DATABASE_PASSWORD: ${AUTH_DATABASE_PASSWORD:?Set AUTH_DATABASE_PASSWORD}
+      SCHEDULER_DATABASE_PASSWORD: ${SCHEDULER_DATABASE_PASSWORD:?Set SCHEDULER_DATABASE_PASSWORD}
+      BACKUP_DATABASE_PASSWORD: ${BACKUP_DATABASE_PASSWORD:-}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DEMO_BOOTSTRAP_TOKEN: ${DEMO_BOOTSTRAP_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+  api:
+    build: .
+    image: freehold-api:local
+    environment:
+      NODE_ENV: ${API_NODE_ENV:-development}
+      PORT: "3001"
+      DATABASE_URL: postgresql://freehold_api:${API_DATABASE_PASSWORD}@postgres:5432/freehold
+      AUTH_SERVICE_URL: http://auth:3002
+      AUTH_INTERNAL_TOKEN: ${AUTH_INTERNAL_TOKEN:?Set AUTH_INTERNAL_TOKEN}
+      REDIS_URL: redis://redis:6379
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?Set TOTP_ENCRYPTION_KEY}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DEMO_BOOTSTRAP_TOKEN: ${DEMO_BOOTSTRAP_TOKEN:-}
+    ports:
+      - "127.0.0.1:${API_PORT:-3001}:3001"
+    depends_on:
+      auth:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    restart: unless-stopped
+  auth:
+    build: .
+    image: freehold-api:local
+    command: [node, dist/src/auth-server.js]
+    environment:
+      AUTH_DATABASE_URL: postgresql://freehold_auth:${AUTH_DATABASE_PASSWORD}@postgres:5432/freehold
+      AUTH_INTERNAL_TOKEN: ${AUTH_INTERNAL_TOKEN:?Set AUTH_INTERNAL_TOKEN}
+      AUTH_BIND_HOST: 0.0.0.0
+      AUTH_PORT: "3002"
+      REDIS_URL: redis://redis:6379
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?Set TOTP_ENCRYPTION_KEY}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    restart: unless-stopped
+  scheduler:
+    build: .
+    image: freehold-api:local
+    command: [node, dist/src/scheduler.js]
+    environment:
+      SCHEDULER_DATABASE_URL: postgresql://freehold_scheduler:${SCHEDULER_DATABASE_PASSWORD}@postgres:5432/freehold
+      SCHEDULER_POLL_MS: ${SCHEDULER_POLL_MS:-5000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  worker:
+    build: .
+    image: freehold-api:local
+    command: [node, dist/src/worker.js]
+    environment:
+      WORKER_DATABASE_URL: postgresql://freehold_worker:${WORKER_DATABASE_PASSWORD}@postgres:5432/freehold
+      WORKER_POLL_MS: ${WORKER_POLL_MS:-1000}
+      WORKER_RECONCILE_MS: ${WORKER_RECONCILE_MS:-30000}
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  web:
+    build: ./web
+    image: freehold-web:local
+    environment:
+      API_ORIGIN: http://api:3001
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+  seed:
+    profiles: [demo]
+    build: .
+    image: freehold-api:local
+    command: [node, scripts/seed-demo.mjs]
+    environment:
+      DEMO_API_URL: http://api:3001
+      DEMO_BOOTSTRAP_TOKEN: ${DEMO_BOOTSTRAP_TOKEN:-}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+volumes:
+  postgres-data:
+  redis-data:

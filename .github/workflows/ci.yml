@@ -1,0 +1,142 @@
+name: freehold
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run check:release
+      - run: npm run check:migrations
+      - run: npm test
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: npm audit --audit-level=high --prefix web
+      - run: npm test --prefix web
+      - run: npm run build --prefix web
+        env:
+          XDG_CONFIG_HOME: /tmp/freehold-next-config
+          NEXT_TELEMETRY_DISABLED: "1"
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix web
+      - run: npx --prefix web playwright install --with-deps chrome
+      - run: bash scripts/phase6-browser.sh
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: bash scripts/check-no-secrets.sh
+      - name: Scan published history for secrets
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo --redact --no-banner
+  deployment-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Unconfigured deployment check must not report READY
+        run: |
+          set +e
+          node scripts/deployment-check.mjs --json --out /tmp/deployment-check.json
+          code=$?
+          set -e
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const report=JSON.parse(readFileSync("/tmp/deployment-check.json","utf8")); if (report.result==="READY" || report.migrationsApplied!==false || report.balancesChanged!==false) process.exit(1);'
+          if [ "$code" -ne 2 ] && [ "$code" -ne 3 ]; then exit "$code"; fi
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Release manifest matches the tree and is not READY without evidence
+        run: |
+          node scripts/release-manifest.mjs --out /tmp/release-manifest.json
+          node scripts/release-verify.mjs --manifest /tmp/release-manifest.json --json --out /tmp/release-verify.json
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const report=JSON.parse(readFileSync("/tmp/release-verify.json","utf8")); if (report.result==="READY" || report.migrationsApplied!==false || report.balancesChanged!==false || report.readOnly!==true) process.exit(1); if (!report.checks.some(check => check.id==="release_manifest" && check.status==="PASS")) process.exit(1);'
+  scheduler-lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: bash scripts/phase8-scheduler-lifecycle.sh
+        env:
+          PHASE8_SCHEDULER_OUT: /tmp/phase8-scheduler-lifecycle.json
+  recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: bash scripts/phase9a-encrypted-backup.sh
+        env:
+          PHASE9A_BACKUP_OUT: /tmp/phase9a-encrypted-backup.json
+      - run: node scripts/phase9a-credential-rotation.mjs
+        env:
+          PHASE9A_ROTATION_OUT: /tmp/phase9a-credential-rotation.json
+  production-rehearsal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix web
+      - run: npm run build --prefix web
+      - run: bash scripts/production-rehearsal.sh
+        env:
+          PRODUCTION_REHEARSAL_OUT: /tmp/production-rehearsal.json
+      - run: bash scripts/pitr-drill.sh
+        env:
+          PITR_DRILL_OUT: /tmp/production-pitr.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-rehearsal
+          path: |
+            /tmp/production-rehearsal.json
+            /tmp/production-pitr.json

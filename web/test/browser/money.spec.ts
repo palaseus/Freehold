@@ -1,0 +1,35 @@
+import { expect, test } from '@playwright/test';
+
+test('simulated money stays distinct from the USD balance', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Account overview' })).toBeVisible();
+  const overviewBalance = page.locator('.hero-amount .money').first();
+  await expect(overviewBalance).toBeVisible();
+  const funded = (await overviewBalance.innerText()).trim();
+  expect(funded).toMatch(/\d\.\d{2}$/);
+  expect(funded).not.toBe('Precision unavailable');
+  await page.goto('/money');
+  await expect(page.getByRole('heading', { name: 'USD and simulated FUSD' })).toBeVisible();
+  const distinction = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Product distinction' }) });
+  await expect(distinction.getByText('Freehold is not a bank.', { exact: true })).toBeVisible();
+  await expect(distinction.getByText('not FDIC insured')).toBeVisible();
+  await expect(distinction.getByText('not legal tender')).toBeVisible();
+  await expect(page.getByText('Outstanding simulated units are not backed by verified external reserves.')).toBeVisible();
+  await expect(page.getByText('SIMULATED_NOT_AUTHORIZED')).toBeVisible();
+  await expect(page.getByText('NOT A BANK DEPOSIT')).toBeVisible();
+  await expect(page.getByText('You hold 0 simulated FUSD.')).toBeVisible();
+  await expect(page.getByText('Redemption is not offered.')).toBeVisible();
+  await expect(page.getByText('No fee is charged.')).toBeVisible();
+  await expect(page.getByText('No simulated redemption is pending or complete.')).toBeVisible();
+  const balance = page.locator('p.hero-amount .money').first();
+  await expect(balance).toHaveText(funded);
+  await page.getByLabel('Amount in minor units').fill('100');
+  await page.getByRole('button', { name: 'Request conversion' }).click();
+  await expect(page.getByText('UNBACKED_CONVERSION_REFUSED')).toBeVisible();
+  await expect(page.getByText('FUSD credited 0')).toBeVisible();
+  await expect(balance).toHaveText(funded);
+  const acknowledge = page.getByRole('button', { name: 'Record draft acknowledgment for PAYMENT_STABLECOIN' });
+  if (await acknowledge.count()) await acknowledge.click();
+  await expect(page.getByText('Draft acknowledgment recorded for PAYMENT_STABLECOIN. This is not a final disclosure and does not authorize issuance.')).toBeVisible();
+  await expect(balance).toHaveText(funded);
+});

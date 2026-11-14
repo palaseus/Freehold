@@ -1,0 +1,22 @@
+# Combine with compose.yaml using project freehold-local. Uses separate volumes.
+services:
+  migrate:
+    image: freehold-api:local-release
+  api:
+    image: freehold-api:local-release
+  auth:
+    image: freehold-api:local-release
+    environment:
+      NODE_ENV: development
+  worker:
+    image: freehold-api:local-release
+    environment:
+      NODE_ENV: development
+  scheduler:
+    image: freehold-api:local-release
+    environment:
+      NODE_ENV: development
+  web:
+    image: freehold-web:local-release
+  seed:
+    image: freehold-api:local-release
