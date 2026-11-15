@@ -1,9 +1,150 @@
-Copyright (c) 2026 Freehold. All rights reserved.
+FREEHOLD LICENSING TERMS
 
-This repository and its original contents are proprietary. No license or
-permission is granted to use, copy, modify, distribute, sublicense, sell, or
-otherwise exploit those contents without prior written permission from the
-applicable copyright holder, except where required by applicable law.
+Copyright (c) 2026 Freehold.
+(Replace "Freehold" with the legal name of the copyright holder before publishing.)
 
-Public availability of this repository does not grant a license. Third-party
-components remain subject to their respective licenses.
+This repository contains two kinds of material, licensed differently:
+
+  Core Components         Apache License, Version 2.0 (SPDX: Apache-2.0)
+                          Full text: LICENSE-APACHE-2.0
+
+  Simulation Components   Proprietary. All rights reserved.
+                          (SPDX: LicenseRef-Freehold-Simulation, see Part B)
+
+Schedule 1 lists the Core Components. Schedule 2 lists the Simulation
+Components. Part C explains how the two are separated.
+
+
+PART A - CORE COMPONENTS (APACHE-2.0)
+
+A.1 Grant. Each Core Component is licensed under the Apache License,
+Version 2.0, the full text of which is in the file LICENSE-APACHE-2.0 and at
+https://www.apache.org/licenses/LICENSE-2.0. Under that license you may use,
+reproduce, modify, distribute, and sublicense Core Components for any
+purpose, including commercial and production use, subject to its conditions
+(including retaining notices and marking changes). You also receive the
+patent license in its Section 3.
+
+A.2 Contributions to Core. Unless you explicitly state otherwise, any
+contribution you intentionally submit for inclusion in a Core Component is
+licensed under Apache-2.0 as provided in Section 5 of that license.
+
+A.3 Mixed files. Some Core files register, list, or integrate with
+Simulation Components (for example, a module list that imports a Simulation
+module, a privilege allowlist that names Simulation functions, or a test that
+exercises both). Such a file is a Core Component in its entirety and is
+licensed under Part A. Licensing that file does not license the Simulation
+Component it refers to, and a reference to a Simulation Component is not a
+copy of it.
+
+A.4 Third-party material. Third-party dependencies are not part of this
+repository's licensed work and remain under their own licenses.
+
+
+PART B - SIMULATION COMPONENTS (PROPRIETARY)
+
+B.1 Reservation of rights. The Simulation Components are proprietary. All
+rights are reserved. Except as expressly granted in B.2 or in a separate
+written agreement signed by the copyright holder, no license or permission is
+granted to use, copy, modify, distribute, sublicense, sell, host, or
+otherwise exploit them. Public availability of this repository does not grant
+a license to them.
+
+B.2 Limited evaluation permission. [OPTIONAL: delete this entire clause for a
+pure all-rights-reserved position.] Solely for Evaluation, you may (a) read
+and study the Simulation Components; and (b) run unmodified or modified
+copies on systems you control, using synthetic data only, and make the
+private copies reasonably necessary to do so. "Evaluation" means
+non-production internal assessment, security research, benchmarking,
+academic study, and integration testing in a non-production environment.
+This permission is non-exclusive, non-transferable, and revocable.
+
+B.3 Restrictions. Unless a separate written agreement says otherwise, you
+may not: (a) distribute, publish, or sublicense Simulation Components or
+modified versions of them; (b) host or offer them as a service to third
+parties; (c) use them in or for a commercial product or service; (d) use
+them with real funds, real customer data, or in connection with any live
+financial, payment, custody, or token-issuance service; or (e) remove or
+alter copyright, license, or SPDX notices.
+
+B.4 Commercial and other licenses. For any use outside B.2, contact the
+copyright holder at [contact address - not yet configured].
+
+B.5 Termination. Any permission under B.2 ends automatically if you breach
+Part B. On termination you must stop using and delete your copies of the
+Simulation Components.
+
+B.6 Contributions to Simulation Components. Contributions to Simulation
+Components are accepted only under a separate written agreement.
+
+B.7 Disclaimer and limitation. THE SIMULATION COMPONENTS ARE PROVIDED "AS
+IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. TO THE MAXIMUM EXTENT
+PERMITTED BY LAW, THE COPYRIGHT HOLDER IS NOT LIABLE FOR ANY CLAIM, DAMAGES,
+OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THEM.
+
+
+PART C - GENERAL
+
+C.1 Default classification. A file or directory is a Core Component only if
+Schedule 1 includes it and Schedule 2 does not. Any file not listed in
+Schedule 1 is a Simulation Component. If a file carries an
+SPDX-License-Identifier header, that header controls for that file.
+
+C.2 Trademarks. This license does not grant permission to use the names,
+logos, or trademarks of the copyright holder, except as needed to describe
+the origin of the work and to reproduce the notices this license requires.
+
+C.3 No financial service. All components are software. Nothing in this
+repository is, or implies, a licensed financial, payment, custody,
+deposit-taking, or token-issuance service, or a statement that any such
+service is authorized or insured. Simulation features do not involve real
+funds. Anyone who operates software from this repository is solely
+responsible for the legal and regulatory obligations of doing so.
+
+C.4 Future changes. The copyright holder may license future versions
+differently. A copy of a Core Component you have already received under
+Apache-2.0 remains under that license.
+
+
+SCHEDULE 1 - CORE COMPONENTS
+
+ 1. Database:
+      db/migrations/001_* through db/migrations/021_*
+      db/tests/
+ 2. Backend source: src/, except the paths in Schedule 2
+ 3. Backend tests: test/
+ 4. Web application: web/, except the paths in Schedule 2
+ 5. Operational tooling: scripts/, except the paths in Schedule 2
+ 6. Documentation and repository infrastructure:
+      docs/, architecture.md, README.md, CHANGELOG.md, CONTRIBUTING.md,
+      SECURITY.md, Dockerfile, compose.yaml, compose.wal.yaml, deploy/,
+      .github/, .env*.example, .dockerignore, .gitignore,
+      package.json, package-lock.json, tsconfig.json
+
+
+SCHEDULE 2 - SIMULATION COMPONENTS
+
+ 1. Database:
+      db/migrations/022_* through db/migrations/034_*, and any later
+      migration that creates or alters objects they define
+ 2. Backend source:
+      src/monetary/
+      src/institution/
+ 3. Web application:
+      web/app/money/
+      web/app/developers/
+      web/app/admin/network/
+      web/app/admin/partners/
+      web/app/admin/platform/
+      web/app/admin/program/
+      web/app/admin/reserves/
+      web/app/admin/evidence/
+      web/test/browser/money.spec.ts
+ 4. Operational tooling:
+      scripts/phase16-*
+      scripts/lib/institution-provider.mjs
+      scripts/lib/network-iso.mjs
+      scripts/lib/network-trust.mjs
+ 5. Any other file whose primary purpose is to implement the monetary
+    (stablecoin) simulation, the institutional tenant platform, the
+    simulated financial network, or the programmable-finance sandbox.
