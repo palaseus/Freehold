@@ -70,4 +70,4 @@ Read [SECURITY.md](SECURITY.md) before reporting vulnerabilities. Generated repo
 
 ## Rights
 
-Copyright © 2026 Freehold. **All rights reserved.** This is proprietary source, not an open-source license. See [LICENSE](LICENSE). Both npm packages are private and marked `UNLICENSED`. Third-party dependencies retain their own licenses.
+Copyright © 2026 Freehold. **All rights reserved.** This is proprietary source, not an open-source license. See [LICENSE](LICENSE). Both npm packages are private and marked `UNLICENSED`. Third-party dependencies retain their own licenses. SEE:LICENSE MARKDOWN
