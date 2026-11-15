@@ -9,7 +9,7 @@ A PostgreSQL-authoritative financial ledger with a NestJS/Fastify API and a Next
 Requirements: Node.js 22 or newer, Docker Engine, and the current Docker Compose plugin (`docker compose`).
 
 ```sh
-git clone <your-repository-url>
+git clone https://github.com/palaseus/Freehold.git
 cd Freehold
 bash scripts/local-deploy.sh
 ```
